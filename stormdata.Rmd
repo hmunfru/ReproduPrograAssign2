@@ -1,0 +1,161 @@
+---
+title: "stormdata.Rmd"
+output: html_document
+---
+
+Storm Events with Most Effects on Population Health (Fatalities, Injuries), and Economic Consequences (Crop and Property)
+========================================================
+
+## Synopsis
+
+Storms and other severe weather events can cause both public health and economic problems for communities and municipalities. Many severe events can result in fatalities, injuries, and property damage, and preventing such outcomes to the extent possible is a key concern.
+
+This project involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
+
+With the NOAA Storm Database, I explore and try to find out which events are most harmful. 
+
+## Data
+The data comes from U.S. National Oceanic and Atmospheric Administration in csv, compressed in bz2 and following is the link to download the data and also relevant documents. 
+
+ 1. [The main NOAA database](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2)
+ 2. [National Weather Service Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf)
+ 3. [National Climatic Data Center Storm Events FAQ](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2FNCDC%20Storm%20Events-FAQ%20Page.pdf)
+
+## Data processing
+Firstly, it is required to load the required libraries.
+
+```{r}
+require(R.utils)  
+require(plyr)
+require(ggplot2)
+```
+
+Then, let's process to load the data from the NOAA database. As it is said, we need to download it from the URL, and unzip it.
+
+```{r}
+url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+storm_data_bz <- "storm_data_bz.csv.bz2"
+storm_data_csv <- "storm_data_bz.csv"
+directory <- "StormData"
+storm_data_path_bz <- file.path(directory, storm_data_bz)
+storm_data_path <- file.path(directory, storm_data_csv)
+
+if (!dir.exists(directory)){
+    dir.create(directory)
+}
+if (!file.exists(storm_data_path_bz)) {
+    download.file(url, storm_data_path_bz)
+}
+if (!file.exists(storm_data_path)) {
+    bunzip2(storm_data_path_bz, storm_data_path, remove=FALSE)  
+}
+```
+
+Finally we will store the data in a variable. In addition, let's explore the data obtained. 
+
+```{r}
+data = read.csv(storm_data_path) 
+```
+And let's explore the data
+
+```{r echo=TRUE}
+str(data)
+head(data)
+colnames(data)
+```
+
+Before starting with the analysis, we will remove irrelevant columns in the data frame, as well that we will calculate the numerci valud for the damage.
+
+For the health case:
+```{r}
+events_health <- subset(data, select = c("EVTYPE", "FATALITIES", "INJURIES"))
+
+```
+
+For the economic case:
+```{r}
+events_economic <- subset(data, select = c("EVTYPE", "PROPDMG", "PROPDMGEXP", "CROPDMGEXP",  "CROPDMGEXP"))
+
+levels(events_economic$PROPDMGEXP) <- c("1", "1", "1", "1", "1", "1", "1", "1", "1",                                   "1", "1", "1", "1", "1000000000", "1", "1", "1000", "1000000", "1000000")
+levels(events_economic$CROPDMGEXP) <- c("1", "1", "1", "1", "1000000000", "1000", 
+                                  "1000", "1000000", "1000000")
+
+```
+
+
+## Results
+### Analysis
+Now we have the data required and we have cleaned it to some extent. Lets calculate the data.
+
+Lets get the top 12 event types, in each health and economy data sets, which have caused most damage.
+
+
+```{r}
+events_health$damage <- events_health$FATALITIES + events_health$INJURIES
+total_health <- aggregate(damage ~ EVTYPE, events_health, FUN=sum, na.rm=TRUE)   
+## sort and filter top only    
+total_health <- arrange(total_health, desc(damage))[1:12,]
+total_health <- reorder(total_health$EVTYPE, -(total_health$damage)) 
+```
+
+And for the economic case. ....
+```{r}
+events_economic <- subset(data, select = c("EVTYPE", "CROPDMG", "CROPDMGEXP", "PROPDMG", "PROPDMGEXP"))
+events_economic$PROPDMG <- events_economic$PROPDMG * as.integer(events_economic$PROPDMGEXP)
+events_economic$CROPDMG <- events_economic$CROPDMG * as.integer(events_economic$CROPDMGEXP)
+events_economic$damage <- events_economic$PROPDMG + events_economic$CROPDMG
+total_economic <- aggregate(damage ~ EVTYPE, events_economic, FUN=sum, na.rm=TRUE)   
+## sort and filter top only    
+total_economic <- arrange(total_economic, desc(damage))[1:12,]
+total_economic <- reorder(total$EVTYPE, -(total_economic$damage)) 
+```
+
+
+
+
+```{r}
+topEcoEvents <- ecoDataRep[order(-ecoDataRep$damage), ][1:12, ]
+topHealthEvents <- healthDataRep[order(-healthDataRep$damage), ][1:12, ]
+```
+
+
+### Visualization
+**Plot for top 12 event types causing highest damage to health:**
+
+
+```{r}
+require(ggplot2)
+```
+
+```
+## Loading required package: ggplot2
+```
+
+```r
+ggplot(data=total, aes(x=EVTYPE, y=damage)) +
+  geom_bar(stat="identity") +
+  labs(x="Event Type", y="Number of Population Affected",  
+       title="Most Harmful Events to Population Health")
+```
+
+
+
+
+**Plot for top 12 event types causing highest damage to economy:**
+
+
+```r
+ggplot(data=total, aes(x=EVTYPE, y=damage)) +
+  geom_bar(stat="identity") +
+  labs(x="Event Type", y="Economic",  
+       title="Most Harmful Events to Population Health")
+```
+
+
+
+## Conclusion
+From above graphs its evident that Tornado is the winner causing most damage to economy and also to health of people across USA.
+
+## Author
+Author of this document is Henar Muñoz Frutos. The code is uploaded into github.
+
